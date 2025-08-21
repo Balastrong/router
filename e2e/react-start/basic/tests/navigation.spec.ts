@@ -32,17 +32,28 @@ test('Navigating nested layouts', async ({ page }) => {
   await expect(page.locator('body')).toContainText("I'm layout B!")
 })
 
+test('the Scripts component does not duplicate scripts in the head', async ({
+  page,
+}) => {
+  await page.goto('/scripts')
+  expect(await page.evaluate('window.SCRIPT_1')).toBe(1)
+  const headScripts = await page
+    .locator('head script')
+    .evaluateAll((scripts) => scripts.map((s) => s.getAttribute('src')))
+  expect(headScripts.filter((src) => src === 'script.js')).toHaveLength(1)
+})
+
 test('client side navigating to a route with scripts', async ({ page }) => {
   await page.goto('/')
   await page.getByRole('link', { name: 'Scripts' }).click()
   await expect(page.getByTestId('scripts-test-heading')).toBeInViewport()
-  expect(await page.evaluate('window.SCRIPT_1')).toBe(true)
+  expect(await page.evaluate('window.SCRIPT_1')).toBe(1)
   expect(await page.evaluate('window.SCRIPT_2')).toBe(undefined)
 })
 
 test('directly going to a route with scripts', async ({ page }) => {
   await page.goto('/scripts')
-  expect(await page.evaluate('window.SCRIPT_1')).toBe(true)
+  expect(await page.evaluate('window.SCRIPT_1')).toBe(1)
   expect(await page.evaluate('window.SCRIPT_2')).toBe(undefined)
 })
 
