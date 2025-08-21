@@ -1,7 +1,6 @@
-import { describe, expect, test } from 'vitest'
-import { act, render, screen } from '@testing-library/react'
+import { afterEach, describe, expect, test } from 'vitest'
+import { act, cleanup, render, screen } from '@testing-library/react'
 import ReactDOMServer from 'react-dom/server'
-
 import {
   HeadContent,
   Outlet,
@@ -12,6 +11,10 @@ import {
   createRouter,
 } from '../src'
 import { Scripts } from '../src/Scripts'
+
+afterEach(() => {
+  cleanup()
+})
 
 describe('ssr scripts', () => {
   test('it works', async () => {
@@ -68,6 +71,65 @@ describe('ssr scripts', () => {
       { src: 'script2.js' },
       { src: 'script3.js' },
     ])
+  })
+
+  test('renders scripts in place, ignoring head scripts and by keeping head clean', async () => {
+    const rootRoute = createRootRoute({
+      scripts: () => [{ src: 'script.js' }],
+      head: () => ({
+        scripts: [
+          {
+            src: 'script2.js',
+          },
+        ],
+      }),
+      component: () => {
+        return (
+          <>
+            <div data-testid="root">root</div>
+            <Outlet />
+            <Scripts />
+          </>
+        )
+      },
+    })
+
+    const indexRoute = createRoute({
+      path: '/',
+      getParentRoute: () => rootRoute,
+      scripts: () => [{ src: 'script3.js' }],
+      component: () => {
+        return <div data-testid="index">index</div>
+      },
+    })
+
+    const router = createRouter({
+      history: createMemoryHistory({
+        initialEntries: ['/'],
+      }),
+      routeTree: rootRoute.addChildren([indexRoute]),
+      isServer: true,
+    })
+
+    await router.load()
+
+    expect(router.state.matches.map((d) => d.scripts).flat(1)).toEqual([
+      { src: 'script.js' },
+      { src: 'script3.js' },
+    ])
+
+    const { container } = await act(() =>
+      render(<RouterProvider router={router} />),
+    )
+    expect(await screen.findByTestId('root')).toBeInTheDocument()
+    expect(await screen.findByTestId('index')).toBeInTheDocument()
+
+    expect(document.head.innerHTML).toEqual('')
+    expect(document.head.childElementCount).toBe(0)
+
+    expect(container.innerHTML).toEqual(
+      `<div data-testid="root">root</div><div data-testid="index">index</div><script src="script.js"></script><script src="script3.js"></script>`,
+    )
   })
 
   test('excludes `undefined` script values', async () => {

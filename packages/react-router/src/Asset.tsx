@@ -61,8 +61,6 @@ function Script({
         }
       }
 
-      document.head.appendChild(script)
-
       return () => {
         if (script.parentNode) {
           script.parentNode.removeChild(script)
@@ -88,8 +86,6 @@ function Script({
           }
         }
       }
-
-      document.head.appendChild(script)
 
       return () => {
         if (script.parentNode) {
